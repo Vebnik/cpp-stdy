@@ -1,10 +1,8 @@
 #include<iostream>
-using std::cout;
-using std::endl;
 
 int main()
 {
-	cout << "hello nice guy" << endl;
+	std::cout << "hello nice guy" << std::endl;
 
 	return 1;
 }
