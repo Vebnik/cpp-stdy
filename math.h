@@ -1,4 +1,4 @@
-int factorial(int num) {
+inline int factorial(int num) {
 
   int tmp = 1;
 
