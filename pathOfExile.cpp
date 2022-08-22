@@ -4,7 +4,7 @@
 #include <TlHelp32.h>
 #include <Psapi.h>
 #include <memoryapi.h>
-#pragma comment(lib, "user32")
+#include <libloaderapi.h>
 
 void sendKeys(){
 
@@ -18,6 +18,35 @@ void sendKeys(){
   inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
 
   SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+}
+
+HMODULE getProcessModule(DWORD lpProcessId, LPCSTR lpModule){
+
+  HMODULE hResult = NULL;
+  HANDLE hSnapshot;
+  MODULEENTRY32 me32;
+
+  hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, lpProcessId);
+
+  if (hSnapshot != INVALID_HANDLE_VALUE)
+  {
+      me32.dwSize = sizeof(MODULEENTRY32);
+      if (Module32First(hSnapshot, &me32))
+      {
+          do
+          {
+              if (!stricmp(me32.szModule, lpModule))
+              {
+                  hResult = me32.hModule;
+                  break;
+              }
+          }
+          while (Module32Next(hSnapshot, &me32));
+      }
+      CloseHandle(hSnapshot);
+  }
+
+  return hResult;
 }
 
 HWND getWindowProcess(LPSTR processName){
@@ -71,51 +100,92 @@ long long getLastPointer(long long baseAddr, long long offset1, long long offset
   return nextVal7;
 }
 
-void checkValue(HANDLE handleProcess){
+void checkValue(HANDLE handleProcess, long long baseAddress, DWORD procId){
 
-  LPVOID addr = VirtualAllocEx(handleProcess, NULL, strlen("F:\\games\\SteamLibrary\\steamapps\\common\\Path of Exile\\PathOfExileSteam.exe"), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+  LPMODULEINFO lpmodinfo;
+  
+  HMODULE hModule = getProcessModule(procId, "ReShade64.dll");
+  //bool GetModuleInformation(handleProcess, hModule, &lpmodinfo, sizeof(lpmodinfo));
 
-  std::cout << "Target process adderss " << addr << "\n";
+  std::cout << "-----------------" << "\n";
+  std::cout << "HMODULE " << hModule << "\n";
+  std::cout << "LPMODULEINFO " << lpmodinfo << "\n";
+  std::cout << "-----------------" << "\n";
+
+  // offset pointer to dynamic es ReShade64.dll
+  long long esOffset1 = 0xB0;
+  long long esOffset2 = 0x58;
+  long long esOffset3 = 0x50;
+  long long esOffset4 = 0x48;
+  long long esOffset5 = 0x50;
+  long long esOffset6 = 0x0;
+  long long esOffset7 = 0x20C;
+  long long esBasePointer = 0x00370948;
+
+  // offset pointer to dynamic mp
+  long long mpOffset1 = 0x88;
+  long long mpOffset2 = 0x28;
+  long long mpOffset3 = 0x40;
+  long long mpOffset4 = 0x10;
+  long long mpOffset5 = 0x218;
+  long long mpOffset6 = 0x0;
+  long long mpOffset7 = 0x988;
+  long long mpBasePointer = 0x02BDB1A8;
 
   // offset pointer to dynamic hp
-  long long offset1 = 0x58;
-  long long offset2 = 0xE0;
-  long long offset3 = 0x80;
-  long long offset4 = 0x250;
-  long long offset5 = 0x10;
-  long long offset6 = 0x40;
-  long long offset7 = 0xB80;
-  long long basePointer = 0x02BDB1A8;
+  long long hpOffset1 = 0x58;
+  long long hpOffset2 = 0xE0;
+  long long hpOffset3 = 0x80;
+  long long hpOffset4 = 0x250;
+  long long hpOffset5 = 0x10;
+  long long hpOffset6 = 0x40;
+  long long hpOffset7 = 0xB80;
+  long long hpBasePointer = 0x02BDB1A8;
 
-  long long baseAddrTest = 0x00400000 + basePointer;
+  long long processBaseAddress = 0x226f46d1878;
 
-  long long baseAddr = 0x1C1EDA6C990; // target first addres
+  long long hpBaseAddr = 0x1E153040B10; // target first addres
+  long long mpBaseAddr = 0x1E153040B10; // target first addres
+  long long esBaseAddr = (long long)hModule;
   
-  std::cout << "baseAddrTest " << baseAddrTest << "\n";
 
-  int cnt = 5;
+  std::cout << "hpBaseAddr " << hpBaseAddr << "\n";
+  std::cout << "mpBaseAddr " << mpBaseAddr << "\n";
+  std::cout << "esBaseAddr " << esBaseAddr << "\n";
 
-  for (int i = 0; i < cnt; i){
+  for (;;){
 
-    unsigned int currentHp = getLastPointer(baseAddr,offset1,offset2,offset3,offset4,offset5,offset6,offset7, handleProcess);
+    unsigned int currentHp = getLastPointer(processBaseAddress+hpBasePointer,hpOffset1,hpOffset2,hpOffset3,hpOffset4,hpOffset5,hpOffset6,hpOffset7, handleProcess);
+    unsigned int currentMp = getLastPointer(processBaseAddress+mpBasePointer,mpOffset1,mpOffset2,mpOffset3,mpOffset4,mpOffset5,mpOffset6,mpOffset7, handleProcess);
+    unsigned int currentEs = getLastPointer(esBasePointer,esOffset1,esOffset2,esOffset3,esOffset4,esOffset5,esOffset6,esOffset7, handleProcess);
 
+    std::cout << "-----------------" << "\n";
     std::cout << "Dynamic HP Value: " << currentHp << "\n";
-
+    std::cout << "Dynamic MP Value: " << currentMp << "\n";
+    std::cout << "Dynamic ES Value: " << currentEs << "\n";
+    std::cout << "-----------------" << "\n";
+  
     if (currentHp < (150.0F / 100.0F * 50)){
-      
       sendKeys();
       std::cout << "LOW HP" << currentHp << "\n";
     }
 
-    Sleep(1000);
+    Sleep(10000);
+    system("cls");
   }
-    
+
 }
 
 int main()
 {
 
-  HWND hwnd = getWindowProcess("Path of Exile");
+  long long baseAddress{ };
+
+  std::cout << "BaseAddress 0x1E1... convert to long int -> 2067272043280" << "\n";
+  std::cin >> baseAddress;
+  std::cout << "BaseAddress: " << baseAddress << "\n";
+
+  HWND hwnd = getWindowProcess((LPSTR)"Path of Exile");
 
   if (hwnd == NULL) {
     std::cout << "Not found process" << "\n";
@@ -132,7 +202,7 @@ int main()
     return 0;
   } else {
     std::cout << "Found process" << "\n";
-    checkValue(handleProcess);
+    checkValue(handleProcess, baseAddress, procId);
   }
 
 }
