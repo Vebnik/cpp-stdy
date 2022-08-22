@@ -6,15 +6,15 @@
 #include <memoryapi.h>
 #include <libloaderapi.h>
 
-void sendKeys(){
+void sendKeys(WORD kbButton){
 
   INPUT inputs[2] = {};
 
   inputs[0].type = INPUT_KEYBOARD;
-  inputs[0].ki.wVk = VK_SPACE;
+  inputs[0].ki.wVk = kbButton;
 
   inputs[1].type = INPUT_KEYBOARD;
-  inputs[1].ki.wVk = VK_SPACE;
+  inputs[1].ki.wVk = kbButton;
   inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
 
   SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
@@ -113,14 +113,14 @@ void checkValue(HANDLE handleProcess, long long baseAddress, DWORD procId){
   std::cout << "-----------------" << "\n";
 
   // offset pointer to dynamic es ReShade64.dll
-  long long esOffset1 = 0xB0;
-  long long esOffset2 = 0x58;
-  long long esOffset3 = 0x50;
-  long long esOffset4 = 0x48;
-  long long esOffset5 = 0x50;
+  long long esOffset1 = 0x50;
+  long long esOffset2 = 0x48;
+  long long esOffset3 = 0x68;
+  long long esOffset4 = 0x270;
+  long long esOffset5 = 0x40;
   long long esOffset6 = 0x0;
   long long esOffset7 = 0x20C;
-  long long esBasePointer = 0x00370948;
+  long long esBasePointer = 0x02BDB1A8;
 
   // offset pointer to dynamic mp
   long long mpOffset1 = 0x88;
@@ -142,22 +142,24 @@ void checkValue(HANDLE handleProcess, long long baseAddress, DWORD procId){
   long long hpOffset7 = 0xB80;
   long long hpBasePointer = 0x02BDB1A8;
 
-  long long processBaseAddress = 0x226f46d1878;
-
+  
   long long hpBaseAddr = 0x1E153040B10; // target first addres
   long long mpBaseAddr = 0x1E153040B10; // target first addres
-  long long esBaseAddr = (long long)hModule;
+  long long esBaseAddr = 0x1E153040B10; // target first addres
   
 
   std::cout << "hpBaseAddr " << hpBaseAddr << "\n";
   std::cout << "mpBaseAddr " << mpBaseAddr << "\n";
   std::cout << "esBaseAddr " << esBaseAddr << "\n";
+  std::cout << "baseAddress " << baseAddress << "\n";
+
+  Sleep(5000);
 
   for (;;){
 
-    unsigned int currentHp = getLastPointer(processBaseAddress+hpBasePointer,hpOffset1,hpOffset2,hpOffset3,hpOffset4,hpOffset5,hpOffset6,hpOffset7, handleProcess);
-    unsigned int currentMp = getLastPointer(processBaseAddress+mpBasePointer,mpOffset1,mpOffset2,mpOffset3,mpOffset4,mpOffset5,mpOffset6,mpOffset7, handleProcess);
-    unsigned int currentEs = getLastPointer(esBasePointer,esOffset1,esOffset2,esOffset3,esOffset4,esOffset5,esOffset6,esOffset7, handleProcess);
+    unsigned int currentHp = getLastPointer(baseAddress,hpOffset1,hpOffset2,hpOffset3,hpOffset4,hpOffset5,hpOffset6,hpOffset7, handleProcess);
+    unsigned int currentMp = getLastPointer(baseAddress,mpOffset1,mpOffset2,mpOffset3,mpOffset4,mpOffset5,mpOffset6,mpOffset7, handleProcess);
+    unsigned int currentEs = getLastPointer(baseAddress,esOffset1,esOffset2,esOffset3,esOffset4,esOffset5,esOffset6,esOffset7, handleProcess);
 
     std::cout << "-----------------" << "\n";
     std::cout << "Dynamic HP Value: " << currentHp << "\n";
@@ -166,11 +168,16 @@ void checkValue(HANDLE handleProcess, long long baseAddress, DWORD procId){
     std::cout << "-----------------" << "\n";
   
     if (currentHp < (150.0F / 100.0F * 50)){
-      sendKeys();
+      sendKeys(VK_F1);
       std::cout << "LOW HP" << currentHp << "\n";
     }
 
-    Sleep(10000);
+    if (currentMp < (129.0F / 100.0F * 50)){
+      sendKeys(VK_F2);
+      std::cout << "LOW MP" << currentHp << "\n";
+    }
+
+    Sleep(100);
     system("cls");
   }
 
